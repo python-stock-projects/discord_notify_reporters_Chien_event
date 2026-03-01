@@ -6,67 +6,40 @@
 修改資料來原為google新聞，以「簡威瑟」為關鍵字搜尋
 '''
 
+import urllib.parse
 import requests
-from bs4 import BeautifulSoup
-from datetime import datetime
-
-
+import feedparser
 
 def check_news():
+    # 1. 設定關鍵字並轉換為 URL 編碼格式
+    query = "簡威瑟 when:4h"
+    encoded_query = urllib.parse.quote(query)
 
-    new_news = get_google_news()
-    # print(f"new_news：{new_news}")
+    # 將網址改為 Google 新聞的 RSS 搜尋端點
+    rss_url = f"https://news.google.com/rss/search?q={encoded_query}&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
 
-    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-   
-    if new_news:
-        # 處理新公告，例如發送通知
-        print(f"有新的news - {current_time}")
-  
-    else:
-        print(f"沒有新的news - {current_time}")
-
-    return new_news
-
-def get_google_news():
-    # 關鍵字「簡威瑟 when:1h」
-    url = f'https://news.google.com/search?q=%E7%B0%A1%E5%A8%81%E7%91%9F%20when%3A4h&hl=zh-TW&gl=TW&ceid=TW%3Azh-Hant'
+    # 2. 發送請求以獲取 RSS 內容
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
+    response = requests.get(rss_url, headers=headers)
 
-    response = requests.get(url, headers=headers)
-    soup = BeautifulSoup(response.text, "html.parser")
-    # print(soup)
-    # return soup
+    # 3. 使用 feedparser 解析回傳的 XML 內容
+    feed = feedparser.parse(response.content)
 
     news_list = []
-    for item in soup.find_all("article", class_="IFHyqb"): # 更新的 Google 新聞項目 class
-        title_tag = item.find("a", class_="JtKRv")
-        title = title_tag.text if title_tag else "No title" # 標題
-        link = title_tag["href"] if title_tag else "No link" # 連結
-        if link.startswith("."):
-            link = "https://news.google.com" + link[1:]
-        source_tag = item.find("div", class_="vr1PYe")
-        source = source_tag.text if source_tag else "No source" # 來源
-        date_tag = item.find("time", class_="hvbAAd")
-        date = date_tag.text if date_tag else "No date" # 日期
 
-
+    # 4. 迴圈讀取每一篇新聞
+    for entry in feed.entries:
         news_list.append({
-            "title": title,
-            "link": link,
-            "source": source,
-            "date": date
+            'title': entry.title,
+            'link': entry.link,
+            'source': entry.source.title if 'source' in entry else '未知',
+            'time': entry.published
         })
-    
+
+    # 回傳抓取到的新聞列表，給 run.py 接收
     return news_list
-
-
-if __name__ == "__main__":
-
-    check_news()
-    # get_google_news()
 
 
 
